@@ -53,7 +53,7 @@ export class AppShell {
               <div class="app-logo-text">TrailSync <span class="app-logo-sub">Nav</span></div>
             </div>
             
-            <div class="header-controls" style="display: flex; flex-direction: column; gap: 8px; align-items: flex-end;">
+            <div class="header-controls" style="display: flex; align-items: center; gap: 8px;">
               <div class="gps-source-selector" id="btn-toggle-sim" style="cursor:pointer">
                 <div id="gps-indicator" class="gps-source-dot disconnected"></div>
                 <div id="gps-status-text" class="gps-source-status text-muted">Waiting...</div>

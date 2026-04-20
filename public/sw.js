@@ -23,6 +23,7 @@ const BYPASS_HOSTS = [
   'project-osrm.org',     // Routing engine
   'router.project-osrm.org',
   'nominatim.openstreetmap.org', // Geocoder
+  'ipapi.co',              // IP geolocation
   'fonts.googleapis.com',  // Google Fonts (CORS issues with caching)
   'fonts.gstatic.com',
 ];

@@ -17,6 +17,8 @@ export class RoutePlanner {
     this.onDownload = null;
     this.onSearchSelect = null;
     this.onProfileChange = null;     // Feature 8: routing profile change
+    this.onMapFlyTo = null;          // State/city auto-zoom
+    this.mapCenter = null;           // Current map center for distance-sorted search
 
     // Feature 9: drag state
     this._dragSrcIndex = null;
@@ -73,6 +75,9 @@ export class RoutePlanner {
         </div>
 
         <div id="rp-summary" class="route-summary" style="display:none;">
+            <div style="margin-bottom: 10px;">
+                <input type="text" id="rp-route-name" class="input" placeholder="Route name (e.g. Pune to Lonavala)" style="font-size: 13px; font-weight: 600;">
+            </div>
             <div class="route-summary-row">
                 <span class="route-summary-label">Distance</span>
                 <span id="rp-summary-dist" class="route-summary-value">0 km</span>
@@ -136,7 +141,8 @@ export class RoutePlanner {
 
     this.btnDownload.addEventListener('click', () => {
         if(this.onDownload && this.routeData) {
-            this.onDownload(this.routeData, this.waypoints); // Pass route and original waypoints
+            const routeName = document.getElementById('rp-route-name').value.trim();
+            this.onDownload(this.routeData, this.waypoints, routeName || null);
         } else {
              toast.info("No Route", "Please snap to roads first.");
         }
@@ -152,12 +158,92 @@ export class RoutePlanner {
             if (this.onProfileChange) this.onProfileChange(profile);
         });
     });
+
+    // Auto-zoom map when user enters a state or city
+    const geocodeAndFly = async (query, zoom) => {
+        if (!query || query.length < 2) return;
+        try {
+            const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1`;
+            const res = await fetch(url, { headers: { 'Accept-Language': 'en', 'User-Agent': 'TrailSync/1.0' } });
+            const results = await res.json();
+            if (results.length > 0) {
+                const { lat, lon } = results[0];
+                if (this.onMapFlyTo) this.onMapFlyTo(parseFloat(lat), parseFloat(lon), zoom);
+            }
+        } catch (err) {
+            console.warn('[RoutePlanner] Geocode failed:', err);
+        }
+    };
+
+    // Track last geocoded query to avoid redundant API calls
+    let _lastGeoQuery = '';
+
+    const doGeoFly = () => {
+        const state = this.elState.value.trim();
+        const city = this.elCity.value.trim();
+        let query = '';
+        let zoom = 7;
+        if (city && state) { query = `${city}, ${state}`; zoom = 12; }
+        else if (city) { query = city; zoom = 12; }
+        else if (state) { query = state; zoom = 7; }
+        if (query && query !== _lastGeoQuery) {
+            _lastGeoQuery = query;
+            geocodeAndFly(query, zoom);
+        }
+    };
+
+    // Debounced input handler — triggers 800ms after user stops typing
+    let _geoTimeout;
+    const debouncedGeoFly = () => {
+        clearTimeout(_geoTimeout);
+        _geoTimeout = setTimeout(doGeoFly, 800);
+    };
+
+    this.elState.addEventListener('input', debouncedGeoFly);
+    this.elCity.addEventListener('input', debouncedGeoFly);
+
+    // Also trigger immediately on Enter
+    this.elState.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); clearTimeout(_geoTimeout); doGeoFly(); }
+    });
+    this.elCity.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); clearTimeout(_geoTimeout); doGeoFly(); }
+    });
   }
 
-  addWaypoint(lat, lon) {
-    this.waypoints.push({ lat, lon });
+  addWaypoint(lat, lon, name = null) {
+    const wp = { lat, lon, name: name || null };
+    this.waypoints.push(wp);
     this.updateUI();
     if(this.onAddWaypoint) this.onAddWaypoint(lat, lon, this.waypoints.length - 1);
+
+    // Reverse geocode if no name provided (map click)
+    if (!name) {
+        const idx = this.waypoints.length - 1;
+        this.reverseGeocode(lat, lon).then(placeName => {
+            if (placeName && this.waypoints[idx]) {
+                this.waypoints[idx].name = placeName;
+                this.updateUI();
+            }
+        });
+    }
+  }
+
+  /** Reverse geocode lat/lon to a short place name */
+  async reverseGeocode(lat, lon) {
+    try {
+        const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&zoom=16`;
+        const res = await fetch(url, { headers: { 'Accept-Language': 'en', 'User-Agent': 'TrailSync/1.0' } });
+        const data = await res.json();
+        if (data && data.display_name) {
+            // Return short name: first 2 parts of the address
+            const parts = data.display_name.split(',');
+            return parts.slice(0, 2).map(s => s.trim()).join(', ');
+        }
+    } catch (err) {
+        console.warn('[RoutePlanner] Reverse geocode failed:', err);
+    }
+    return null;
   }
 
   removeWaypoint(index) {
@@ -188,10 +274,31 @@ export class RoutePlanner {
           if (city) fullQuery += `, ${city}`;
           if (state) fullQuery += `, ${state}`;
 
-          const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(fullQuery)}&format=json&limit=5`;
-          const res = await fetch(url, { headers: { 'Accept-Language': 'en' }});
-          const results = await res.json();
+          // Build URL with viewbox bias from current map center for better local results
+          let url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(fullQuery)}&format=json&limit=10&addressdetails=1`;
           
+          // Add viewbox bias if we have a map reference (prioritizes nearby results)
+          if (this.mapCenter) {
+              const bias = 0.5; // ~50km radius bias
+              const vb = `${this.mapCenter.lon - bias},${this.mapCenter.lat + bias},${this.mapCenter.lon + bias},${this.mapCenter.lat - bias}`;
+              url += `&viewbox=${vb}&bounded=0`;
+          }
+
+          const res = await fetch(url, { headers: { 'Accept-Language': 'en', 'User-Agent': 'TrailSync/1.0' }});
+          let results = await res.json();
+          
+          // Calculate distance from user's actual location (or map center as fallback)
+          const distRef = this.userLocation || this.mapCenter;
+          if (distRef && results.length > 0) {
+              results.forEach(r => {
+                  r._dist = this._haversine(
+                      distRef.lat, distRef.lon,
+                      parseFloat(r.lat), parseFloat(r.lon)
+                  );
+              });
+              results.sort((a, b) => a._dist - b._dist);
+          }
+
           this.elSearchResults.innerHTML = '';
           if (results.length === 0) {
               this.elSearchResults.innerHTML = '<div style="padding: 8px; font-size: 11px; color: var(--text-muted)">No results found</div>';
@@ -199,14 +306,22 @@ export class RoutePlanner {
               results.forEach(r => {
                   const div = document.createElement('div');
                   div.className = 'search-result-item';
-                  div.textContent = r.display_name;
+                  // Show name + short address + distance
+                  const shortAddr = r.display_name.split(',').slice(0, 3).join(',');
+                  const distStr = r._dist !== undefined ? ` · ${r._dist < 1 ? (r._dist * 1000).toFixed(0) + ' m' : r._dist.toFixed(1) + ' km'}` : '';
+                  div.innerHTML = `<div style="font-size:12px; line-height:1.4;">
+                      <span style="font-weight:600;">${r.display_name.split(',')[0]}</span>
+                      <span style="color:var(--green-600); font-size:10px; font-weight:600;">${distStr}</span>
+                      <div style="font-size:10px; color:var(--text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${shortAddr}</div>
+                  </div>`;
                   div.addEventListener('click', () => {
                       this.elSearch.value = r.display_name.split(',')[0];
                       this.elSearchResults.style.display = 'none';
                       const lat = parseFloat(r.lat);
                       const lon = parseFloat(r.lon);
-                      // Auto-add waypoint
-                      this.addWaypoint(lat, lon);
+                      const name = r.display_name.split(',')[0];
+                      // Auto-add waypoint with name
+                      this.addWaypoint(lat, lon, name);
                       if (this.onSearchSelect) {
                           this.onSearchSelect(lat, lon);
                       }
@@ -283,7 +398,10 @@ export class RoutePlanner {
           <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>
         </div>
         <div class="waypoint-number">${idx + 1}</div>
-        <div class="waypoint-coords">${wp.lat.toFixed(5)}, ${wp.lon.toFixed(5)}</div>
+        <div class="waypoint-coords">
+          ${wp.name ? `<div style="font-weight:600; font-family:var(--font-sans); font-size:var(--text-xs); color:var(--text-primary); margin-bottom:1px;">${wp.name}</div>` : ''}
+          <div style="font-size:10px; opacity:0.7;">${wp.lat.toFixed(5)}, ${wp.lon.toFixed(5)}</div>
+        </div>
         <button class="waypoint-remove" data-index="${idx}">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
         </button>
@@ -348,5 +466,16 @@ export class RoutePlanner {
           this.btnSnap.disabled = false;
           this.btnClear.disabled = false;
       }
+  }
+
+  /** Haversine distance in km between two lat/lon points */
+  _haversine(lat1, lon1, lat2, lon2) {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon/2) * Math.sin(dLon/2);
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   }
 }

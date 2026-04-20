@@ -80,15 +80,12 @@ class NavigationApp {
     // Bind UI -> App logic
     this.bindEvents();
     
-    // Fix 2: Load demo route for simulator so first boot has GPS data
-    this.core.simulator.setRoute(DEMO_ROUTE);
-    
-    // Start with simulator by default
-    this.initGPS();
+    // Don't auto-start simulator — let user enable GPS when needed
+    // This prevents demo Vellore coordinates from overriding real location
     
     // Show onboarding toast on first boot
     setTimeout(() => {
-      toast.info('Welcome to TrailSync', 'Simulator running with a demo route. Plan your own route on the map!');
+      toast.info('Welcome to TrailSync', 'Click the GPS indicator to connect a GPS source, or start planning a route!');
     }, 1500);
   }
 
@@ -209,6 +206,24 @@ class NavigationApp {
         this.ui.map.flyTo(lat, lon, 15);
     };
 
+    // Planning: State/City auto-zoom
+    this.ui.planner.onMapFlyTo = (lat, lon, zoom) => {
+        this.ui.map.flyTo(lat, lon, zoom);
+    };
+
+    // Keep planner's mapCenter synced for distance-sorted search
+    this.ui.map.map.on('moveend', () => {
+        const c = this.ui.map.map.getCenter();
+        this.ui.planner.mapCenter = { lat: c.lat, lon: c.lng };
+        // Sync user's resolved location for accurate distance calc
+        if (this.ui.map.userLocation) {
+            this.ui.planner.userLocation = this.ui.map.userLocation;
+        }
+    });
+    // Set initial center
+    const initCenter = this.ui.map.map.getCenter();
+    this.ui.planner.mapCenter = { lat: initCenter.lat, lon: initCenter.lng };
+
     // Planning: List updates
     this.ui.planner.onAddWaypoint = (lat, lon) => this.refreshMapWaypoints();
     this.ui.planner.onRemoveWaypoint = () => {
@@ -246,8 +261,8 @@ class NavigationApp {
     };
 
     // Offline Download
-    this.ui.planner.onDownload = async (routeData, waypoints) => {
-       await this.downloadForOffline(routeData, waypoints);
+    this.ui.planner.onDownload = async (routeData, waypoints, routeName) => {
+       await this.downloadForOffline(routeData, waypoints, routeName);
     };
 
     // Begin Navigation (from Offline List)
@@ -338,6 +353,7 @@ class NavigationApp {
 
   processGPSFix(fixData) {
     if (fixData.lat === undefined || fixData.lon === undefined) return;
+    if (isNaN(fixData.lat) || isNaN(fixData.lon)) return;
 
     // 1. Kalman Smoothing
     const smoothed = this.core.smoother.process(fixData.lat, fixData.lon, fixData.timestamp || Date.now());
@@ -441,7 +457,7 @@ class NavigationApp {
 
   // ============== OFFLINE DOWNLOAD ==============
 
-  async downloadForOffline(routeData, originalWaypoints) {
+  async downloadForOffline(routeData, originalWaypoints, userRouteName = null) {
      this.ui.download.show();
      
      try {
@@ -511,26 +527,28 @@ class NavigationApp {
          // Feature 12: Remove tile preview grid
          this.ui.map.clearTilePreview();
 
-         // 4. Fix 5: Reverse-geocode start/end for meaningful route name
-         this.ui.download.updateProgress('Naming Route', 'Reverse-geocoding endpoints...', 92);
-         let routeName = `Route via ${originalWaypoints.length} points`;
-         try {
-             const startPt = originalWaypoints[0];
-             const endPt = originalWaypoints[originalWaypoints.length - 1];
-             const [startRes, endRes] = await Promise.all([
-                 fetch(`https://nominatim.openstreetmap.org/reverse?lat=${startPt.lat}&lon=${startPt.lon}&format=json&zoom=16`, { headers: { 'Accept-Language': 'en' }}),
-                 fetch(`https://nominatim.openstreetmap.org/reverse?lat=${endPt.lat}&lon=${endPt.lon}&format=json&zoom=16`, { headers: { 'Accept-Language': 'en' }}),
-             ]);
-             const [startData, endData] = await Promise.all([startRes.json(), endRes.json()]);
-             const startName = startData.address?.suburb || startData.address?.village || startData.address?.city || startData.display_name?.split(',')[0] || 'Start';
-             const endName = endData.address?.suburb || endData.address?.village || endData.address?.city || endData.display_name?.split(',')[0] || 'Destination';
-             if (startName !== endName) {
-                 routeName = `${startName} → ${endName}`;
-             } else {
-                 routeName = `Loop at ${startName}`;
+         // 4. Route name: use user-provided name, or reverse-geocode endpoints
+         let routeName = userRouteName || `Route via ${originalWaypoints.length} points`;
+         if (!userRouteName) {
+             this.ui.download.updateProgress('Naming Route', 'Reverse-geocoding endpoints...', 92);
+             try {
+                 const startPt = originalWaypoints[0];
+                 const endPt = originalWaypoints[originalWaypoints.length - 1];
+                 const [startRes, endRes] = await Promise.all([
+                     fetch(`https://nominatim.openstreetmap.org/reverse?lat=${startPt.lat}&lon=${startPt.lon}&format=json&zoom=16`, { headers: { 'Accept-Language': 'en', 'User-Agent': 'TrailSync/1.0' }}),
+                     fetch(`https://nominatim.openstreetmap.org/reverse?lat=${endPt.lat}&lon=${endPt.lon}&format=json&zoom=16`, { headers: { 'Accept-Language': 'en', 'User-Agent': 'TrailSync/1.0' }}),
+                 ]);
+                 const [startData, endData] = await Promise.all([startRes.json(), endRes.json()]);
+                 const startName = startData.address?.suburb || startData.address?.village || startData.address?.city || startData.display_name?.split(',')[0] || 'Start';
+                 const endName = endData.address?.suburb || endData.address?.village || endData.address?.city || endData.display_name?.split(',')[0] || 'Destination';
+                 if (startName !== endName) {
+                     routeName = `${startName} → ${endName}`;
+                 } else {
+                     routeName = `Loop at ${startName}`;
+                 }
+             } catch (geocodeErr) {
+                 console.warn('Reverse geocoding failed, using default name:', geocodeErr);
              }
-         } catch (geocodeErr) {
-             console.warn('Reverse geocoding failed, using default name:', geocodeErr);
          }
 
          // Feature 14: Fetch and cache POIs along the route corridor
@@ -789,9 +807,6 @@ class NavigationApp {
       this.core.voice.announce(activeInst, distToTurn, this.state.instructionIndex);
 
       // Feature 7: Announce arrival
-      if (activeInst.maneuver === MANEUVER.ARRIVE && distToTurn < CONFIG.arrivalThreshold * 3) {
-          // Pre-announce arrival at 3x threshold
-      }
 
       // Feature 10: Speed alerts
       if (this.state.speedLimitKmh > 0 && speedKmh > this.state.speedLimitKmh) {
@@ -810,5 +825,15 @@ class NavigationApp {
 
 // Bootstrap
 window.addEventListener('DOMContentLoaded', () => {
-    window.app = new NavigationApp();
+    try {
+        window.app = new NavigationApp();
+    } catch (err) {
+        console.error('[TrailSync] Fatal initialization error:', err);
+        document.getElementById('app').innerHTML = `
+            <div style="padding:40px;text-align:center;font-family:Inter,sans-serif;">
+                <h2>Failed to start TrailSync</h2>
+                <p style="color:#666;">${err.message}</p>
+                <button onclick="location.reload()" style="margin-top:16px;padding:8px 24px;cursor:pointer;">Reload</button>
+            </div>`;
+    }
 });
