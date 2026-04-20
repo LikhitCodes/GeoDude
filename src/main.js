@@ -639,6 +639,9 @@ class NavigationApp {
 
           toast.info("Navigation Started", "Following offline route.");
 
+          // Collapse sidebar on mobile to maximize map area during navigation
+          this.ui.shell.collapseMobileSheet();
+
       } catch (e) {
           console.error(e);
           toast.error("Start Failed", "Could not load offline route data.");

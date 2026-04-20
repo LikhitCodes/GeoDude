@@ -102,7 +102,7 @@ class BLEServerCB : public BLEServerCallbacks {
 // Optional: handle writes from the app (not currently used by TrailSync)
 class BLERxCB : public BLECharacteristicCallbacks {
   void onWrite(BLECharacteristic* pChar) override {
-    std::string rx = pChar->getValue();
+    String rx = pChar->getValue();
     if (rx.length() > 0) {
       Serial.printf("[BLE] Received: %s\n", rx.c_str());
     }

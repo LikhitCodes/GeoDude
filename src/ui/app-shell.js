@@ -31,6 +31,7 @@ export class AppShell {
     }
 
     this.bindEvents();
+    this.initMobileSheet();
   }
 
   render() {
@@ -142,6 +143,57 @@ export class AppShell {
             }
         });
     });
+  }
+
+  /** Mobile bottom sheet: start collapsed, toggle on tap */
+  initMobileSheet() {
+    const sidebar = document.querySelector('.sidebar');
+    if (!sidebar) return;
+
+    const isMobile = () => window.matchMedia('(max-width: 768px)').matches;
+
+    // Start collapsed on mobile
+    if (isMobile()) {
+      sidebar.classList.add('mobile-collapsed');
+    }
+
+    // Toggle on header click (the drag handle area)
+    const header = sidebar.querySelector('.app-header');
+    if (header) {
+      header.style.cursor = 'pointer';
+      header.addEventListener('click', (e) => {
+        // Don't toggle when clicking the GPS indicator or dark mode button
+        if (e.target.closest('#btn-toggle-sim') || e.target.closest('#btn-dark-mode')) return;
+        if (isMobile()) {
+          sidebar.classList.toggle('mobile-collapsed');
+        }
+      });
+    }
+
+    // Also allow tapping the tab bar to expand if collapsed
+    const tabs = sidebar.querySelector('.sidebar-tabs');
+    if (tabs) {
+      tabs.addEventListener('click', () => {
+        if (isMobile() && sidebar.classList.contains('mobile-collapsed')) {
+          sidebar.classList.remove('mobile-collapsed');
+        }
+      });
+    }
+
+    // Re-check on resize
+    window.addEventListener('resize', () => {
+      if (!isMobile()) {
+        sidebar.classList.remove('mobile-collapsed');
+      }
+    });
+  }
+
+  /** Collapse the mobile bottom sheet (e.g. when starting navigation) */
+  collapseMobileSheet() {
+    const sidebar = document.querySelector('.sidebar');
+    if (sidebar && window.matchMedia('(max-width: 768px)').matches) {
+      sidebar.classList.add('mobile-collapsed');
+    }
   }
 
   switchMode(mode) {
