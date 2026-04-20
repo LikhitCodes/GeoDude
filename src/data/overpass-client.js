@@ -30,13 +30,21 @@ export async function fetchRoads(south, west, north, east) {
 
   let lastError;
 
-  for (const url of OVERPASS_ENDPOINTS) {
+  for (let i = 0; i < OVERPASS_ENDPOINTS.length; i++) {
+      const url = OVERPASS_ENDPOINTS[i];
       try {
           const response = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: `data=${encodeURIComponent(query)}`,
           });
+
+          if (response.status === 429) {
+            // Rate limited — wait before trying the next endpoint
+            console.warn(`[Overpass] Rate limited (429) by ${url}, waiting 2s before next endpoint...`);
+            await new Promise(r => setTimeout(r, 2000));
+            throw new Error('Rate limited (429). Try again in a moment.');
+          }
 
           if (!response.ok) {
             throw new Error(`API error: ${response.status} ${response.statusText}`);
@@ -46,11 +54,14 @@ export async function fetchRoads(south, west, north, east) {
       } catch (err) {
           lastError = err;
           console.warn(`Failed to fetch from ${url}:`, err.message);
-          // Continue to the next URL in the array
+          // Brief delay before trying next endpoint to avoid rapid-fire requests
+          if (i < OVERPASS_ENDPOINTS.length - 1) {
+            await new Promise(r => setTimeout(r, 500));
+          }
       }
   }
 
-  throw new Error(`All Overpass API endpoints failed. Last error: ${lastError.message}`);
+  throw new Error(`All Overpass API endpoints failed. Last error: ${lastError.message}. If this persists, wait a minute and try again.`);
 }
 
 /**

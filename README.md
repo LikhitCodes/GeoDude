@@ -244,23 +244,14 @@ Click the GPS status indicator (top-right of sidebar) to open the **GPS Settings
 
 ### ⚠️ Known Limitations & Edge Cases
 
-| Issue | Severity | Details |
-|-------|----------|---------|
-| **Route Planner time estimate hardcoded** | Low | `setSnappedRoute()` uses hardcoded `avgKmh = 12` instead of the selected profile speed. The OSRM response duration is already computed but the planner summary ignores it. |
-| **Trip history route ID/name missing** | Low | `stopNavigation()` references `this.state.activeRouteData.id` and `.name`, but `activeRouteData` comes from `startNavigation()` which copies from the route record but doesn't include `id` and `name`. Trips may show "Unknown Route". |
-| **OSRM cycling/walking profiles** | Medium | The public OSRM server at `router.project-osrm.org` supports only **driving** by default. Cycling and walking profiles may return errors or fall back to driving routes. |
-| **Bluetooth requires HTTPS** | Medium | Web Bluetooth API requires a secure context (HTTPS). Works on localhost during development but not on plain HTTP deployments. |
-| **Overpass API rate limits** | Medium | The Overpass API has rate limits. Downloading routes in quick succession may result in 429 errors. The client retries across 3 mirror endpoints. |
-| **Large route tile downloads** | Low | Routes longer than ~50km at zoom levels 14–16 can generate hundreds of tiles. No user warning or tile count limit is enforced. |
-| **Service Worker + Vite HMR** | Low | During development, the service worker may cache stale assets. The SW skips `__vite` and `@vite` paths, but you may need to clear caches manually during dev. |
-| **No Vite config file** | Info | Project has no `vite.config.js` — uses default Vite settings. This is fine for the current setup. |
-
-### 🐛 Bugs to Fix
-
-| Bug | File | Description |
-|-----|------|-------------|
-| **Route planner always shows bike time** | `route-planner.js:231` | `avgKmh = 12` is hardcoded in `setSnappedRoute()`. Should use the routing profile speed from `state.routingProfile`. |
-| **Trip records missing route metadata** | `main.js:598` | `this.state.activeRouteData.id` is undefined because `startNavigation()` doesn't copy `id`/`name` from the route record into `activeRouteData`. |
+| Issue | Status | Details |
+|-------|--------|---------|
+| **OSRM cycling/walking profiles** | ✅ Handled | The public OSRM server may not support all profiles. The app now **auto-falls back to driving** with a toast notification if cycling/walking routing fails. |
+| **Bluetooth requires HTTPS** | ✅ Handled | The app now **detects insecure contexts** and shows a clear error toast before attempting Bluetooth, instead of failing silently. |
+| **Overpass API rate limits** | ✅ Handled | The client now adds **retry delays** between endpoints (500ms) and handles 429 responses with a 2s backoff before trying the next mirror. |
+| **Large route tile downloads** | ✅ Handled | Routes requiring **500+ tiles** now show a **confirmation dialog** with estimated download size before proceeding. |
+| **Service Worker + Vite HMR** | ✅ Fixed | The service worker is now **only registered in production** (when no port is present in the URL), avoiding all HMR cache conflicts during development. |
+| **Vite config** | ✅ Fixed | `vite.config.js` has been created with sensible defaults, LAN server access, and a clear comment for GitHub Pages `base` path. |
 
 ---
 
@@ -552,6 +543,7 @@ Optionally, it can also send JSON diagnostic payloads:
 Iot-CP/
 ├── index.html              # Entry HTML (PWA meta tags, font imports)
 ├── package.json            # Dependencies: vite, leaflet, idb
+├── vite.config.js          # Vite build config (base path, server settings)
 ├── public/
 │   ├── manifest.json       # PWA manifest
 │   ├── sw.js              # Service Worker (app shell caching)

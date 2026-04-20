@@ -136,6 +136,15 @@ class NavigationApp {
 
     // Feature 17: Bluetooth
     this.ui.gpsSettings.onSwitchToBluetooth = async () => {
+        // Check for secure context (HTTPS) — required by Web Bluetooth API
+        if (!window.isSecureContext) {
+            toast.error("HTTPS Required", "Bluetooth requires a secure connection (HTTPS). Use localhost for development or deploy with HTTPS.");
+            return;
+        }
+        if (!navigator.bluetooth) {
+            toast.error("Not Supported", "Web Bluetooth is not available in this browser. Try Chrome or Edge.");
+            return;
+        }
         this.state.useSimulator = false;
         this.state.gpsProvider = 'bluetooth';
         try {
@@ -144,7 +153,7 @@ class NavigationApp {
             toast.success("GPS Mode", "Connected via Bluetooth BLE.");
             this.ui.shell.updateConnectionStatus('connected', false);
         } catch (err) {
-            toast.error("Bluetooth Error", "Failed to connect to device.");
+            toast.error("Bluetooth Error", err.message || "Failed to connect to device.");
             // Fallback to simulator
             this.state.gpsProvider = 'simulator';
             this.state.useSimulator = true;
@@ -369,11 +378,23 @@ class NavigationApp {
         // 1. Use OSRM public API for robust, global pathfinding
         const coordsStr = waypoints.map(wp => `${wp.lon},${wp.lat}`).join(';');
         // Feature 8: Multi-mode routing via OSRM profiles
-        const profile = this.state.routingProfile || 'driving';
+        let profile = this.state.routingProfile || 'driving';
+        let usedFallback = false;
+        let data;
+
+        // Try the selected profile first; if cycling/walking fails, fall back to driving
         const osrmUrl = `https://router.project-osrm.org/route/v1/${profile}/${coordsStr}?overview=full&geometries=geojson`;
-        
         const res = await fetch(osrmUrl);
-        const data = await res.json();
+        data = await res.json();
+
+        if (data.code !== 'Ok' && profile !== 'driving') {
+            // The public OSRM server may not support cycling/walking — fall back to driving
+            toast.warning("Profile Unavailable", `${profile} routing not available on this server. Falling back to driving.`);
+            const fallbackUrl = `https://router.project-osrm.org/route/v1/driving/${coordsStr}?overview=full&geometries=geojson`;
+            const fallbackRes = await fetch(fallbackUrl);
+            data = await fallbackRes.json();
+            usedFallback = true;
+        }
 
         if (data.code !== 'Ok' || !data.routes || data.routes.length === 0) {
             throw new Error(data.message || "Routing engine could not find a path between these points.");
@@ -389,7 +410,8 @@ class NavigationApp {
 
         // Feature 8: Calculate time estimate based on selected routing profile
         const profileSpeeds = { driving: 40, cycling: 15, walking: 5 };
-        const avgKmh = profileSpeeds[this.state.routingProfile] || 40;
+        const effectiveProfile = usedFallback ? 'driving' : this.state.routingProfile;
+        const avgKmh = profileSpeeds[effectiveProfile] || 40;
         const timeSeconds = (route.distance / 1000) / avgKmh * 3600;
 
         this.state.activeRouteData = {
@@ -404,7 +426,7 @@ class NavigationApp {
         this.ui.map.setRoute(pathCoords);
         this.ui.planner.setSnappedRoute(this.state.activeRouteData);
         
-        toast.success("Route Found", `${formatDistance(route.distance)}`);
+        toast.success("Route Found", `${formatDistance(route.distance)}${usedFallback ? ' (driving fallback)' : ''}`);
 
         // Update Simulator if running
         if (this.state.useSimulator && this.core.simulator.intervalId) {
@@ -454,6 +476,23 @@ class NavigationApp {
          const bounds = { south: s-pad, west: w-pad, north: n+pad, east: e+pad };
          
          const tilesNeeded = getTilesForRoute(bounds, CONFIG.offlineZoomLevels);
+
+         // Warn user if download is very large (> 500 tiles)
+         if (tilesNeeded.length > 500) {
+             this.ui.download.hide();
+             const sizeEstimate = estimateDownloadSize(tilesNeeded.length);
+             const proceed = confirm(
+                 `This route requires ${tilesNeeded.length} map tiles (~${sizeEstimate}).\n` +
+                 `Large downloads may take a while and use significant storage.\n\n` +
+                 `Continue with download?`
+             );
+             if (!proceed) {
+                 toast.info('Download Cancelled', 'You can try a shorter route or reduce zoom levels.');
+                 return;
+             }
+             this.ui.download.show();
+             this.ui.download.updateProgress('Preparing Tiles', `${tilesNeeded.length} tiles to download...`, 30);
+         }
          
          // Feature 12: Show tile preview grid on the map
          this.ui.map.showTilePreview(tilesNeeded);

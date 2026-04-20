@@ -29,7 +29,8 @@
   <div id="app"></div>
   <script type="module" src="/src/main.js"></script>
   <script>
-    if ('serviceWorker' in navigator) {
+    // Only register Service Worker in production (avoid Vite HMR cache conflicts)
+    if ('serviceWorker' in navigator && !window.location.port) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('/sw.js').then(registration => {
           console.log('ServiceWorker registration successful with scope: ', registration.scope);
