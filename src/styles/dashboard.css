@@ -1,0 +1,589 @@
+/* ============================================================
+   Dashboard — Online Mode Layout & Panels
+   ============================================================ */
+
+/* ---------- Main Layout ---------- */
+.app-layout {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* ---------- Header ---------- */
+.app-header {
+  height: var(--header-height);
+  background: var(--green-900);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--space-5);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  z-index: 100;
+  flex-shrink: 0;
+}
+
+.app-logo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.app-logo-icon {
+  width: 32px;
+  height: 32px;
+}
+
+.app-logo-text {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--text-on-dark);
+  letter-spacing: -0.02em;
+}
+
+.app-logo-sub {
+  font-size: var(--text-xs);
+  color: var(--green-400);
+  font-weight: 400;
+  margin-left: var(--space-2);
+  opacity: 0.8;
+}
+
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+/* ---------- Sidebar ---------- */
+.sidebar {
+  width: var(--sidebar-width);
+  height: 100%;
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border-light);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  overflow: hidden;
+  z-index: 10;
+}
+
+.sidebar-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border-light);
+  background: var(--bg-card);
+}
+
+.sidebar-tab {
+  flex: 1;
+  padding: 14px 0;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text-muted);
+  text-align: center;
+  border-bottom: 2px solid transparent;
+  transition: all var(--duration-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+}
+
+.sidebar-tab:hover {
+  color: var(--text-primary);
+  background: var(--cream);
+}
+
+.sidebar-tab.active {
+  color: var(--green-700);
+  border-bottom-color: var(--green-600);
+  background: var(--bg-card);
+}
+
+.sidebar-tab svg {
+  width: 16px;
+  height: 16px;
+}
+
+.sidebar-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-5);
+}
+
+.sidebar-section {
+  margin-bottom: var(--space-6);
+}
+
+.sidebar-section-title {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: var(--space-3);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.sidebar-section-title svg {
+  width: 14px;
+  height: 14px;
+  opacity: 0.6;
+}
+
+/* ---------- Telemetry Grid ---------- */
+.telemetry-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+
+.telemetry-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  transition: border-color var(--duration-fast);
+}
+
+.telemetry-card:hover {
+  border-color: var(--green-300);
+}
+
+.telemetry-card.full-width {
+  grid-column: 1 / -1;
+}
+
+.telemetry-label {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: var(--space-1);
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.telemetry-label svg {
+  width: 12px;
+  height: 12px;
+  opacity: 0.5;
+}
+
+.telemetry-value {
+  font-family: var(--font-mono);
+  font-size: var(--text-xl);
+  font-weight: 600;
+  color: var(--text-primary);
+  transition: color var(--duration-fast);
+}
+
+.telemetry-value.large {
+  font-size: var(--text-3xl);
+}
+
+.telemetry-detail {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  margin-top: 2px;
+  font-family: var(--font-mono);
+}
+
+/* ---------- Speed Arc ---------- */
+.speed-display {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.speed-arc-container {
+  position: relative;
+  width: 80px;
+  height: 80px;
+}
+
+.speed-arc {
+  transform: rotate(-90deg);
+}
+
+.speed-arc-bg {
+  fill: none;
+  stroke: var(--sand);
+  stroke-width: 5;
+}
+
+.speed-arc-fill {
+  fill: none;
+  stroke: var(--green-500);
+  stroke-width: 5;
+  stroke-linecap: round;
+  transition: stroke-dashoffset var(--duration-normal) var(--ease-out);
+}
+
+.speed-value-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+}
+
+.speed-number {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+.speed-unit {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* ---------- Route Planner ---------- */
+.search-container {
+    position: relative;
+    margin-bottom: var(--space-3);
+    z-index: 1000;
+}
+.search-results {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: var(--bg-card);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-md);
+    max-height: 200px;
+    overflow-y: auto;
+    margin-top: 4px;
+    display: none;
+}
+.search-result-item {
+    padding: 8px 12px;
+    font-size: var(--text-xs);
+    cursor: pointer;
+    border-bottom: 1px solid var(--border-light);
+    color: var(--text-primary);
+}
+.search-result-item:hover {
+    background: var(--green-100);
+}
+.search-result-item:last-child {
+    border-bottom: none;
+}
+
+.waypoint-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.waypoint-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  transition: border-color var(--duration-fast);
+}
+
+.waypoint-item:hover {
+  border-color: var(--green-300);
+}
+
+.waypoint-number {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--green-600);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.waypoint-coords {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.waypoint-remove {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  transition: all var(--duration-fast);
+  flex-shrink: 0;
+}
+
+.waypoint-remove:hover {
+  background: var(--danger-light);
+  color: var(--danger);
+}
+
+.waypoint-connector {
+  width: 2px;
+  height: 16px;
+  background: var(--green-300);
+  margin-left: 14px;
+  border-radius: 1px;
+}
+
+.route-summary {
+  background: var(--green-100);
+  border: 1px solid var(--green-200);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  margin-top: var(--space-3);
+}
+
+.route-summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-1) 0;
+  font-size: var(--text-sm);
+}
+
+.route-summary-label {
+  color: var(--green-700);
+}
+
+.route-summary-value {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--green-800);
+}
+
+/* ---------- Route List ---------- */
+.route-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  margin-bottom: var(--space-3);
+  transition: all var(--duration-fast);
+  cursor: pointer;
+}
+
+.route-card:hover {
+  border-color: var(--green-400);
+  box-shadow: var(--shadow-md);
+}
+
+.route-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: var(--space-2);
+}
+
+.route-card-name {
+  font-size: var(--text-base);
+  font-weight: 600;
+}
+
+.route-card-date {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.route-card-stats {
+  display: flex;
+  gap: var(--space-4);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+.route-card-stat {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.route-card-actions {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+/* ---------- Download Progress ---------- */
+.download-panel {
+  background: var(--green-100);
+  border: 1px solid var(--green-200);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+}
+
+.download-phase {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--green-700);
+  margin-bottom: var(--space-2);
+}
+
+.download-detail {
+  font-size: var(--text-xs);
+  color: var(--green-600);
+  font-family: var(--font-mono);
+  margin-top: var(--space-2);
+}
+
+/* ---------- Map Container ---------- */
+.map-container {
+  flex: 1;
+  position: relative;
+  min-width: 0;
+}
+
+#map {
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+
+/* Leaflet overrides for green theme */
+.leaflet-control-zoom a {
+  background: var(--bg-card) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-light) !important;
+  font-weight: 600 !important;
+}
+
+.leaflet-control-zoom a:hover {
+  background: var(--green-100) !important;
+  color: var(--green-700) !important;
+}
+
+.leaflet-control-attribution {
+  background: rgba(255, 255, 255, 0.85) !important;
+  font-size: 10px !important;
+}
+
+/* ---------- Empty State ---------- */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-10) var(--space-6);
+  text-align: center;
+}
+
+.empty-state-icon {
+  width: 64px;
+  height: 64px;
+  color: var(--stone);
+  margin-bottom: var(--space-4);
+  opacity: 0.5;
+}
+
+.empty-state-title {
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-2);
+}
+
+.empty-state-text {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  max-width: 240px;
+  line-height: 1.5;
+}
+
+/* ---------- GPS Source Selector ---------- */
+.gps-source-selector {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.gps-source-label {
+  font-size: var(--text-xs);
+  color: var(--green-300);
+  white-space: nowrap;
+}
+
+.gps-source-status {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-xs);
+  font-weight: 500;
+}
+
+.gps-source-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  animation: status-pulse 2s ease-in-out infinite;
+}
+
+.gps-source-dot.simulated {
+  background: var(--olive-400);
+}
+
+.gps-source-dot.connected {
+  background: var(--green-400);
+}
+
+.gps-source-dot.disconnected {
+  background: var(--danger);
+}
+
+/* ---------- Simulation Controls ---------- */
+.sim-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+}
+
+.sim-speed-btn {
+  padding: 4px 10px;
+  font-size: var(--text-xs);
+  font-family: var(--font-mono);
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  transition: all var(--duration-fast);
+}
+
+.sim-speed-btn.active {
+  background: var(--green-600);
+  color: white;
+}
+
+.sim-speed-btn:hover:not(.active) {
+  background: var(--sand);
+}

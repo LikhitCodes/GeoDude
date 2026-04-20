@@ -1,0 +1,288 @@
+/* ============================================================
+   Navigation — Offline Turn-by-Turn HUD
+   ============================================================ */
+
+/* ---------- Navigation Overlay ---------- */
+.nav-hud {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.nav-hud > * {
+  pointer-events: auto;
+}
+
+/* ---------- Top Instruction Banner ---------- */
+.nav-instruction {
+  background: var(--green-900);
+  color: var(--text-on-dark);
+  margin: var(--space-4);
+  border-radius: var(--radius-xl);
+  padding: var(--space-5) var(--space-6);
+  box-shadow: var(--shadow-xl);
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  animation: slideDown var(--duration-slow) var(--ease-out);
+}
+
+.nav-maneuver-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.nav-maneuver-icon svg {
+  width: 32px;
+  height: 32px;
+  color: var(--green-300);
+}
+
+.nav-instruction-text {
+  flex: 1;
+}
+
+.nav-distance-to-turn {
+  font-family: var(--font-mono);
+  font-size: var(--text-3xl);
+  font-weight: 700;
+  line-height: 1.1;
+  color: white;
+}
+
+.nav-turn-label {
+  font-size: var(--text-base);
+  color: var(--green-300);
+  margin-top: var(--space-1);
+}
+
+.nav-street-name {
+  font-size: var(--text-sm);
+  color: var(--green-400);
+  opacity: 0.8;
+  margin-top: var(--space-1);
+}
+
+/* ---------- Off-Route Warning ---------- */
+.nav-warning {
+  background: var(--danger);
+  color: white;
+  margin: 0 var(--space-4);
+  border-radius: var(--radius-lg);
+  padding: var(--space-3) var(--space-5);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  box-shadow: var(--shadow-lg);
+  animation: shake 0.4s ease-in-out;
+}
+
+.nav-warning-icon {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.nav-warning-text {
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.recalculating {
+  display: inline-flex;
+  gap: 3px;
+  margin-left: var(--space-2);
+}
+
+.recalculating span {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: white;
+  animation: recalcDot 1.2s ease-in-out infinite;
+}
+
+.recalculating span:nth-child(2) { animation-delay: 0.2s; }
+.recalculating span:nth-child(3) { animation-delay: 0.4s; }
+
+/* ---------- Bottom Info Bar ---------- */
+.nav-bottom-bar {
+  background: var(--bg-card);
+  margin: var(--space-4);
+  border-radius: var(--radius-xl);
+  padding: var(--space-4) var(--space-6);
+  box-shadow: var(--shadow-xl);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  animation: slideUp var(--duration-slow) var(--ease-out);
+}
+
+.nav-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.nav-stat-value {
+  font-family: var(--font-mono);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.nav-stat-label {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-top: 2px;
+}
+
+.nav-stat-divider {
+  width: 1px;
+  height: 32px;
+  background: var(--border-light);
+}
+
+.nav-end-btn {
+  padding: 10px 24px;
+  background: var(--danger);
+  color: white;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  font-size: var(--text-sm);
+  transition: all var(--duration-fast);
+}
+
+.nav-end-btn:hover {
+  background: #b03e3e;
+  transform: scale(1.02);
+}
+
+/* ---------- Arrival Screen ---------- */
+.arrival-screen {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  background: var(--bg-overlay);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn var(--duration-slow);
+}
+
+.arrival-icon {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  background: var(--green-500);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: var(--space-6);
+  animation: arrivalPulse 1s ease-out;
+  box-shadow: 0 0 0 0 rgba(94, 165, 94, 0.4);
+}
+
+.arrival-icon svg {
+  width: 48px;
+  height: 48px;
+  color: white;
+}
+
+.arrival-title {
+  font-size: var(--text-3xl);
+  font-weight: 700;
+  color: white;
+  margin-bottom: var(--space-2);
+}
+
+.arrival-subtitle {
+  font-size: var(--text-base);
+  color: var(--green-300);
+  margin-bottom: var(--space-8);
+}
+
+/* ---------- GPS Marker Styles ---------- */
+.gps-marker {
+  width: 20px;
+  height: 20px;
+  position: relative;
+}
+
+.gps-marker-dot {
+  width: 14px;
+  height: 14px;
+  background: var(--green-500);
+  border: 3px solid white;
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 2;
+}
+
+.gps-marker-pulse {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(94, 165, 94, 0.25);
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  animation: gpsPulse 2s ease-out infinite;
+  z-index: 1;
+}
+
+.gps-marker-heading {
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-bottom: 14px solid var(--green-600);
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.2));
+  transition: transform var(--duration-normal) var(--ease-out);
+}
+
+/* ---------- Waypoint Marker ---------- */
+.map-waypoint-marker {
+  width: 28px;
+  height: 36px;
+  position: relative;
+  cursor: grab;
+}
+
+.map-waypoint-pin {
+  width: 28px;
+  height: 36px;
+}
+
+.map-waypoint-number {
+  position: absolute;
+  top: 5px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 11px;
+  font-weight: 700;
+  color: white;
+}
