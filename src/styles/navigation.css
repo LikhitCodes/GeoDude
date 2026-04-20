@@ -286,3 +286,214 @@
   font-weight: 700;
   color: white;
 }
+
+/* ---------- Feature 7: Voice Toggle Button ---------- */
+.nav-voice-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--green-300);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all var(--duration-fast);
+  cursor: pointer;
+}
+
+.nav-voice-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.nav-voice-btn:not(.active) {
+  color: var(--text-muted);
+  opacity: 0.5;
+}
+
+/* ---------- Feature 10: Speed Alert Banner ---------- */
+.nav-speed-alert {
+  background: linear-gradient(135deg, var(--warning), #e07c26);
+  color: white;
+  margin: 0 var(--space-4);
+  margin-top: -6px;
+  border-radius: var(--radius-lg);
+  padding: var(--space-3) var(--space-5);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  box-shadow: var(--shadow-lg);
+  animation: shake 0.4s ease-in-out, pulse-orange 1.5s ease-in-out infinite;
+  font-weight: 600;
+  font-size: var(--text-sm);
+}
+
+@keyframes pulse-orange {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.85; }
+}
+
+/* Speed value flashing red when over limit */
+.speed-over-limit {
+  color: var(--danger) !important;
+  animation: speed-flash 0.6s ease-in-out infinite;
+}
+
+@keyframes speed-flash {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* ---------- Feature 10: Speed Limit Selector ---------- */
+.nav-speed-limit-ctrl {
+  position: relative;
+}
+
+.nav-speed-limit-select {
+  appearance: none;
+  background: var(--sand);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-primary);
+  cursor: pointer;
+  text-align: center;
+  min-width: 70px;
+  transition: all var(--duration-fast);
+}
+
+.nav-speed-limit-select:hover {
+  border-color: var(--green-400);
+}
+
+.nav-speed-limit-select:focus {
+  outline: none;
+  border-color: var(--green-500);
+  box-shadow: 0 0 0 2px rgba(94, 165, 94, 0.15);
+}
+
+/* ---------- Feature 8: Routing Profile Selector ---------- */
+.route-profile-selector {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.route-profile-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  padding: 8px 6px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--bg-card);
+  border: 1.5px solid var(--border-light);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--duration-fast);
+}
+
+.route-profile-btn:hover {
+  border-color: var(--green-300);
+  color: var(--green-700);
+  background: var(--green-100);
+}
+
+.route-profile-btn.active {
+  border-color: var(--green-500);
+  background: var(--green-100);
+  color: var(--green-700);
+  box-shadow: 0 0 0 2px rgba(94, 165, 94, 0.12);
+}
+
+.route-profile-btn svg {
+  flex-shrink: 0;
+}
+
+/* ---------- Feature 9: Waypoint Drag Handle ---------- */
+.waypoint-drag-handle {
+  cursor: grab;
+  color: var(--stone);
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  transition: color var(--duration-fast);
+  flex-shrink: 0;
+}
+
+.waypoint-drag-handle:hover {
+  color: var(--green-600);
+}
+
+.waypoint-item.dragging {
+  opacity: 0.4;
+  border-style: dashed;
+}
+
+.waypoint-item.drag-over {
+  border-color: var(--green-500);
+  background: var(--green-100);
+  box-shadow: 0 0 0 2px rgba(94, 165, 94, 0.15);
+}
+
+/* ---------- Responsive Mobile Layout (HUD) ---------- */
+@media (max-width: 768px) {
+  .nav-instruction {
+    margin: var(--space-2);
+    padding: var(--space-3) var(--space-4);
+    gap: var(--space-3);
+  }
+
+  .nav-maneuver-icon {
+    width: 44px;
+    height: 44px;
+  }
+
+  .nav-maneuver-icon svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  .nav-distance-to-turn {
+    font-size: var(--text-2xl);
+  }
+
+  .nav-bottom-bar {
+    margin: var(--space-2);
+    padding: var(--space-3);
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--space-2);
+  }
+
+  .nav-stat-value {
+    font-size: var(--text-lg);
+  }
+
+  .nav-stat-divider {
+    height: 24px;
+  }
+
+  .nav-end-btn {
+    padding: 8px 16px;
+    font-size: var(--text-xs);
+    width: 100%;
+    margin-top: var(--space-2);
+  }
+
+  .nav-stat {
+    flex: 1;
+  }
+
+  .nav-speed-limit-ctrl {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+}

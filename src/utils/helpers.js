@@ -20,6 +20,7 @@ export function formatDistance(meters) {
 }
 
 export function formatTime(seconds) {
+  if (seconds < 60) return '< 1 min';
   const m = Math.floor(seconds / 60);
   if (m < 60) return `${m} min`;
   const h = Math.floor(m / 60);

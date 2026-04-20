@@ -1,0 +1,19 @@
+{
+  "name": "TrailSync",
+  "short_name": "TrailSync",
+  "description": "Offline-first GPS navigation — plan routes online, navigate offline with turn-by-turn directions.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#faf8f4",
+  "theme_color": "#1a2e1a",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["navigation", "maps"]
+}

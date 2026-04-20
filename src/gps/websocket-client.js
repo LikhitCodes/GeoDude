@@ -12,6 +12,7 @@ export class WebSocketClient extends GPSProvider {
     this.ws = null;
     this.reconnectTimeout = null;
     this.shouldReconnect = true;
+    this.onDiagnostic = null; // Feature 16: callback for ESP32 diagnostics
   }
 
   start() {
@@ -46,8 +47,22 @@ export class WebSocketClient extends GPSProvider {
       };
 
       this.ws.onmessage = (event) => {
-        // Expected to receive raw NMEA strings from ESP32
-        this.emit(event.data);
+        const data = event.data;
+        // Feature 16: Check if the message is a JSON diagnostic payload
+        if (data.startsWith('{')) {
+            try {
+                const payload = JSON.parse(data);
+                if (payload.type === 'status' && this.onDiagnostic) {
+                    this.onDiagnostic(payload);
+                }
+            } catch (e) {
+                // Not JSON or parse error, treat as raw string if it starts with $
+                if (data.startsWith('$')) this.emit(data);
+            }
+        } else {
+            // Raw NMEA string
+            this.emit(data);
+        }
       };
 
       this.ws.onerror = (err) => {

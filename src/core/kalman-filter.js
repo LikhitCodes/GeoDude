@@ -90,6 +90,7 @@ export class KalmanFilter {
 
 /**
  * GPS Position Smoother — wraps two Kalman filters (lat + lon)
+ * Feature 19: Supports optional IMU Sensor Fusion (Accelerometer)
  */
 export class GPSKalmanSmoother {
   constructor() {
@@ -98,6 +99,9 @@ export class GPSKalmanSmoother {
     this.lastTimestamp = null;
     this.lastLat = null;
     this.lastLon = null;
+    // Estimated velocities
+    this.velLat = 0;
+    this.velLon = 0;
   }
 
   /**
@@ -105,25 +109,43 @@ export class GPSKalmanSmoother {
    * @param {number} lat - Raw latitude
    * @param {number} lon - Raw longitude
    * @param {number} timestamp - Timestamp in ms (Date.now())
+   * @param {Object} imu - Optional IMU data { accelLat, accelLon } in degrees/s² (converted from m/s²)
    * @returns {{lat: number, lon: number}} Smoothed position
    */
-  process(lat, lon, timestamp = Date.now()) {
+  process(lat, lon, timestamp = Date.now(), imu = null) {
     let dt = 1;
-    let velLat = 0;
-    let velLon = 0;
 
     if (this.lastTimestamp !== null) {
       dt = Math.max(0.01, (timestamp - this.lastTimestamp) / 1000);
 
-      // Estimate velocity from previous readings
+      // Estimate velocity from previous readings if no IMU
       if (this.lastLat !== null) {
-        velLat = (lat - this.lastLat) / dt;
-        velLon = (lon - this.lastLon) / dt;
+        // Base velocity from GPS
+        let gpsVelLat = (lat - this.lastLat) / dt;
+        let gpsVelLon = (lon - this.lastLon) / dt;
+        
+        // Feature 19: IMU Sensor Fusion
+        // If we have IMU accelerometer data, we can blend the GPS velocity with the integrated IMU acceleration.
+        // Assuming accelY is roughly forward/backward and accelX is lateral (simplified).
+        // In a real system we'd project this using the heading, but for this demo we'll just demonstrate the fusion concept.
+        if (imu && imu.accelLat !== undefined && imu.accelLon !== undefined) {
+          // Integrate acceleration: v = v0 + a*t
+          let imuVelLat = this.velLat + (imu.accelLat * dt);
+          let imuVelLon = this.velLon + (imu.accelLon * dt);
+          
+          // Complementary filter: trust IMU short-term, GPS long-term
+          const alpha = 0.8; 
+          this.velLat = (alpha * imuVelLat) + ((1 - alpha) * gpsVelLat);
+          this.velLon = (alpha * imuVelLon) + ((1 - alpha) * gpsVelLon);
+        } else {
+          this.velLat = gpsVelLat;
+          this.velLon = gpsVelLon;
+        }
       }
     }
 
-    const smoothLat = this.latFilter.filter(lat, velLat, dt);
-    const smoothLon = this.lonFilter.filter(lon, velLon, dt);
+    const smoothLat = this.latFilter.filter(lat, this.velLat, dt);
+    const smoothLon = this.lonFilter.filter(lon, this.velLon, dt);
 
     this.lastTimestamp = timestamp;
     this.lastLat = lat;
@@ -140,8 +162,8 @@ export class GPSKalmanSmoother {
   predictAhead(dtMs) {
     const dt = dtMs / 1000;
     return {
-      lat: this.latFilter.x + (this.lastLat !== null ? ((this.lastLat - this.latFilter.x) / 1) * dt : 0),
-      lon: this.lonFilter.x + (this.lastLon !== null ? ((this.lastLon - this.lonFilter.x) / 1) * dt : 0),
+      lat: this.latFilter.x + (this.velLat * dt),
+      lon: this.lonFilter.x + (this.velLon * dt),
     };
   }
 
@@ -151,5 +173,8 @@ export class GPSKalmanSmoother {
     this.lastTimestamp = null;
     this.lastLat = null;
     this.lastLon = null;
+    this.velLat = 0;
+    this.velLon = 0;
   }
 }
+

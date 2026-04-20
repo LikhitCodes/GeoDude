@@ -25,6 +25,11 @@ export class AppShell {
 
     this.currentMode = 'online';
 
+    // Feature 21: Restore dark mode preference from localStorage
+    if (localStorage.getItem('trailsync-dark-mode') === 'true') {
+      document.body.classList.add('theme-dark');
+    }
+
     this.bindEvents();
   }
 
@@ -48,9 +53,14 @@ export class AppShell {
               <div class="app-logo-text">TrailSync <span class="app-logo-sub">Nav</span></div>
             </div>
             
-            <div class="gps-source-selector" id="btn-toggle-sim" style="cursor:pointer">
-              <div id="gps-indicator" class="gps-source-dot disconnected"></div>
-              <div id="gps-status-text" class="gps-source-status text-muted">Waiting...</div>
+            <div class="header-controls" style="display: flex; flex-direction: column; gap: 8px; align-items: flex-end;">
+              <div class="gps-source-selector" id="btn-toggle-sim" style="cursor:pointer">
+                <div id="gps-indicator" class="gps-source-dot disconnected"></div>
+                <div id="gps-status-text" class="gps-source-status text-muted">Waiting...</div>
+              </div>
+              <button class="btn btn-ghost btn-icon btn-sm" id="btn-dark-mode" title="Toggle Dark Mode">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+              </button>
             </div>
           </div>
 
@@ -65,10 +75,13 @@ export class AppShell {
             </button>
           </div>
 
-          <div class="sidebar-content" id="panel-dashboard">
+            <div class="sidebar-content" id="panel-dashboard">
             <!-- Telemetry Container -->
             <div id="telemetry-container"></div>
             
+            <!-- Feature 22: Trip History Container -->
+            <div id="trip-history-container"></div>
+
             <div class="divider"></div>
 
             <!-- Route Planner Container -->
@@ -110,6 +123,13 @@ export class AppShell {
 
     this.btnToggleSim.addEventListener('click', () => {
       if (this.onToggleSimulator) this.onToggleSimulator();
+    });
+
+    document.getElementById('btn-dark-mode').addEventListener('click', () => {
+      document.body.classList.toggle('theme-dark');
+      const isDark = document.body.classList.contains('theme-dark');
+      localStorage.setItem('trailsync-dark-mode', isDark.toString());
+      if (this.onToggleDarkMode) this.onToggleDarkMode(isDark);
     });
 
     const simBtns = document.querySelectorAll('.sim-speed-btn');

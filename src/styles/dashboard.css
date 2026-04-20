@@ -587,3 +587,25 @@
 .sim-speed-btn:hover:not(.active) {
   background: var(--sand);
 }
+
+/* ---------- Feature 20: Responsive Mobile Layout ---------- */
+@media (max-width: 768px) {
+  .app-layout {
+    flex-direction: column;
+  }
+  .sidebar {
+    width: 100%;
+    height: 45vh;
+    border-right: none;
+    border-bottom: 1px solid var(--border-light);
+  }
+  .map-container {
+    height: 55vh;
+  }
+  .app-header {
+    padding: 0 var(--space-3);
+  }
+  .telemetry-grid {
+    grid-template-columns: 1fr;
+  }
+}

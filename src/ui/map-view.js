@@ -6,29 +6,21 @@ import { createOfflineTileLayer } from '../data/tile-manager.js';
 
 export class MapView {
   constructor(containerId) {
-    const indiaBounds = L.latLngBounds(
-        L.latLng(6.4626999, 68.1097),
-        L.latLng(35.513327, 97.3953587)
-    );
-
     this.map = L.map(containerId, {
       zoomControl: false,
-      maxBounds: indiaBounds,
-      maxBoundsViscosity: 1.0,
-      minZoom: 5
+      minZoom: 2
     });
     
     // Move zoom control to bottom right
     L.control.zoom({ position: 'bottomright' }).addTo(this.map);
 
-    // Default view (approx center of India)
-    this.map.setView([20.5937, 78.9629], 5);
+    // Default view (Global center)
+    this.map.setView([20, 0], 3);
 
     // Online tile layer
     this.onlineLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
-      minZoom: 5,
-      bounds: indiaBounds,
+      minZoom: 2,
       attribution: '© OpenStreetMap contributors',
       className: 'leaflet-green-tint'
     });
@@ -97,9 +89,20 @@ export class MapView {
       // Default hidden position
       this.gpsMarker = L.marker([0, 0], { icon: icon, zIndexOffset: 1000 }).addTo(this.map);
       this.gpsHeadingElement = null; // We cache this when first rendered
+
+      // Feature 11: GPS Accuracy circle
+      this.accuracyCircle = L.circle([0, 0], {
+          radius: 10,
+          color: 'var(--green-400)',
+          fillColor: 'var(--green-300)',
+          fillOpacity: 0.12,
+          weight: 1.5,
+          opacity: 0.4,
+          interactive: false
+      }).addTo(this.map);
   }
 
-  updateGpsPosition(lat, lon, heading = 0) {
+  updateGpsPosition(lat, lon, heading = 0, hdop = null) {
       this.gpsMarker.setLatLng([lat, lon]);
 
       // Cache the heading element if not done
@@ -110,6 +113,24 @@ export class MapView {
 
       if (this.gpsHeadingElement) {
           this.gpsHeadingElement.style.transform = `translateX(-50%) rotate(${heading}deg)`;
+      }
+
+      // Feature 11: Update accuracy circle based on HDOP
+      if (this.accuracyCircle) {
+          this.accuracyCircle.setLatLng([lat, lon]);
+          if (hdop !== null && hdop > 0) {
+              // HDOP * ~5m gives approximate accuracy radius
+              const radiusMeters = Math.max(5, Math.min(hdop * 5, 100));
+              this.accuracyCircle.setRadius(radiusMeters);
+              // Color changes with accuracy: green = good, yellow = ok, red = poor
+              if (hdop <= 1.0) {
+                  this.accuracyCircle.setStyle({ color: 'var(--green-400)', fillColor: 'var(--green-300)' });
+              } else if (hdop <= 2.0) {
+                  this.accuracyCircle.setStyle({ color: 'var(--olive-400)', fillColor: 'var(--olive-300)' });
+              } else {
+                  this.accuracyCircle.setStyle({ color: 'var(--warning)', fillColor: 'var(--warning-light)' });
+              }
+          }
       }
 
       if(this.isFollowing) {
@@ -152,5 +173,87 @@ export class MapView {
 
           L.marker([wp.lat, wp.lon], { icon }).addTo(this.layers.waypoints);
       });
+  }
+
+  // ============== Feature 12: Tile Download Preview ==============
+
+  /**
+   * Show tile grid preview on the map during download
+   * @param {Array} tiles — array of { x, y, z }
+   */
+  showTilePreview(tiles) {
+      // Clear previous preview
+      this.clearTilePreview();
+
+      if (!this._tilePreviewLayer) {
+          this._tilePreviewLayer = L.layerGroup().addTo(this.map);
+      }
+
+      this._tilePreviewRects = [];
+
+      // Only show preview for the lowest zoom level (largest tiles) to avoid clutter
+      const minZoom = Math.min(...tiles.map(t => t.z));
+      const previewTiles = tiles.filter(t => t.z === minZoom);
+
+      previewTiles.forEach(tile => {
+          const bounds = this.tileToBounds(tile.x, tile.y, tile.z);
+          const rect = L.rectangle(bounds, {
+              color: 'var(--green-500)',
+              fillColor: 'var(--green-300)',
+              fillOpacity: 0.08,
+              weight: 1,
+              opacity: 0.3,
+              interactive: false,
+              className: 'tile-preview-rect'
+          });
+          rect.addTo(this._tilePreviewLayer);
+          this._tilePreviewRects.push(rect);
+      });
+  }
+
+  /**
+   * Update tile preview progress — darken downloaded tiles
+   * @param {number} downloaded — tiles downloaded so far
+   * @param {number} total — total tiles
+   */
+  updateTilePreviewProgress(downloaded, total) {
+      if (!this._tilePreviewRects || this._tilePreviewRects.length === 0) return;
+
+      // Map download progress to preview tiles
+      const ratio = downloaded / total;
+      const filledCount = Math.floor(ratio * this._tilePreviewRects.length);
+
+      for (let i = 0; i < this._tilePreviewRects.length; i++) {
+          if (i < filledCount) {
+              this._tilePreviewRects[i].setStyle({
+                  fillColor: 'var(--green-500)',
+                  fillOpacity: 0.2,
+                  color: 'var(--green-600)',
+                  opacity: 0.5,
+              });
+          }
+      }
+  }
+
+  /**
+   * Remove tile preview from map
+   */
+  clearTilePreview() {
+      if (this._tilePreviewLayer) {
+          this._tilePreviewLayer.clearLayers();
+      }
+      this._tilePreviewRects = [];
+  }
+
+  /**
+   * Convert tile coordinates to lat/lon bounds
+   */
+  tileToBounds(x, y, z) {
+      const n = Math.pow(2, z);
+      const lonLeft = (x / n) * 360 - 180;
+      const lonRight = ((x + 1) / n) * 360 - 180;
+      const latTop = Math.atan(Math.sinh(Math.PI * (1 - (2 * y) / n))) * 180 / Math.PI;
+      const latBottom = Math.atan(Math.sinh(Math.PI * (1 - (2 * (y + 1)) / n))) * 180 / Math.PI;
+      return [[latBottom, lonLeft], [latTop, lonRight]];
   }
 }

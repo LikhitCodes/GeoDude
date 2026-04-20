@@ -12,8 +12,14 @@ export class RoutePlanner {
 
     this.onAddWaypoint = null;
     this.onRemoveWaypoint = null;
+    this.onReorderWaypoints = null;  // Feature 9: drag-and-drop reorder
     this.onSnapToRoads = null;
     this.onDownload = null;
+    this.onSearchSelect = null;
+    this.onProfileChange = null;     // Feature 8: routing profile change
+
+    // Feature 9: drag state
+    this._dragSrcIndex = null;
 
     this.render();
   }
@@ -27,13 +33,29 @@ export class RoutePlanner {
         </div>
 
         <div class="search-filters" style="display: flex; gap: 8px; margin-bottom: 8px;">
-           <input type="text" id="rp-state" class="input" style="font-size: 12px;" placeholder="State (Required)" autocomplete="off">
+           <input type="text" id="rp-state" class="input" style="font-size: 12px;" placeholder="State (Optional)" autocomplete="off">
            <input type="text" id="rp-city" class="input" style="font-size: 12px;" placeholder="City (Optional)" autocomplete="off">
         </div>
 
         <div class="search-container">
             <input type="text" id="rp-search" class="input" placeholder="Search places..." autocomplete="off">
             <div id="rp-search-results" class="search-results"></div>
+        </div>
+
+        <!-- Feature 8: Routing profile selector -->
+        <div class="route-profile-selector">
+            <button class="route-profile-btn active" data-profile="driving" title="Driving">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 17h2m10 0h2M7 7h10l1.5 5H5.5L7 7zM5 12h14v5a1 1 0 01-1 1H6a1 1 0 01-1-1v-5z"/></svg>
+                Car
+            </button>
+            <button class="route-profile-btn" data-profile="cycling" title="Cycling">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M15 6a1 1 0 100-2 1 1 0 000 2zM12 17.5V14l-3-3 4-3 2 3h3"/></svg>
+                Bike
+            </button>
+            <button class="route-profile-btn" data-profile="walking" title="Walking">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="2"/><path d="M10 22l4-11m-2 5l-4-4 1-4 4 2 3-2"/></svg>
+                Walk
+            </button>
         </div>
 
         <div id="rp-empty" class="text-xs text-muted text-center py-4" style="padding: 20px 0; border: 1px dashed var(--border-medium); border-radius: var(--radius-md);">
@@ -119,6 +141,17 @@ export class RoutePlanner {
              toast.info("No Route", "Please snap to roads first.");
         }
     });
+
+    // Feature 8: Routing profile buttons
+    const profileBtns = document.querySelectorAll('.route-profile-btn');
+    profileBtns.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            profileBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            const profile = btn.dataset.profile;
+            if (this.onProfileChange) this.onProfileChange(profile);
+        });
+    });
   }
 
   addWaypoint(lat, lon) {
@@ -147,11 +180,7 @@ export class RoutePlanner {
       const state = this.elState.value.trim();
       const city = this.elCity.value.trim();
 
-      if (!state) {
-          this.elSearch.value = "";
-          alert("Please enter a state first.");
-          return;
-      }
+      if (!query) return;
 
       this.elSearch.parentElement.classList.add('loading');
       try {
@@ -159,7 +188,7 @@ export class RoutePlanner {
           if (city) fullQuery += `, ${city}`;
           if (state) fullQuery += `, ${state}`;
 
-          const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(fullQuery)}&format=json&countrycodes=in&limit=5`;
+          const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(fullQuery)}&format=json&limit=5`;
           const res = await fetch(url, { headers: { 'Accept-Language': 'en' }});
           const results = await res.json();
           
@@ -198,10 +227,17 @@ export class RoutePlanner {
       
       // Update Summary UI
       document.getElementById('rp-summary-dist').textContent = formatDistance(routeData.distance);
-      // Rough estimate for biking/walking speed
-      const avgKmh = 12; 
-      const timeMs = (routeData.distance / 1000) / avgKmh * 3600;
-      document.getElementById('rp-summary-time').textContent = formatTime(timeMs);
+      // Use OSRM duration if available, otherwise estimate from routing profile
+      let timeSeconds;
+      if (routeData.duration) {
+          timeSeconds = routeData.duration;
+      } else {
+          const profileSpeeds = { driving: 40, cycling: 15, walking: 5 };
+          const activeProfile = document.querySelector('.route-profile-btn.active')?.dataset?.profile || 'driving';
+          const avgKmh = profileSpeeds[activeProfile] || 40;
+          timeSeconds = (routeData.distance / 1000) / avgKmh * 3600;
+      }
+      document.getElementById('rp-summary-time').textContent = formatTime(timeSeconds);
       
       const turns = (routeData.instructions || []).length;
       document.getElementById('rp-summary-turns').textContent = Math.max(0, turns - 2); // Exclude depart/arrive
@@ -239,8 +275,13 @@ export class RoutePlanner {
 
       const item = document.createElement('div');
       item.className = 'waypoint-item';
+      item.setAttribute('draggable', 'true');  // Feature 9: make draggable
+      item.dataset.index = idx;
       
       item.innerHTML = `
+        <div class="waypoint-drag-handle" title="Drag to reorder">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>
+        </div>
         <div class="waypoint-number">${idx + 1}</div>
         <div class="waypoint-coords">${wp.lat.toFixed(5)}, ${wp.lon.toFixed(5)}</div>
         <button class="waypoint-remove" data-index="${idx}">
@@ -251,6 +292,46 @@ export class RoutePlanner {
       item.querySelector('button').addEventListener('click', (e) => {
         const i = parseInt(e.currentTarget.getAttribute('data-index'));
         this.removeWaypoint(i);
+      });
+
+      // Feature 9: Drag-and-drop events
+      item.addEventListener('dragstart', (e) => {
+        this._dragSrcIndex = idx;
+        item.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', idx.toString());
+      });
+
+      item.addEventListener('dragend', () => {
+        item.classList.remove('dragging');
+        // Clear all drag-over states
+        this.elList.querySelectorAll('.waypoint-item').forEach(el => el.classList.remove('drag-over'));
+      });
+
+      item.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        item.classList.add('drag-over');
+      });
+
+      item.addEventListener('dragleave', () => {
+        item.classList.remove('drag-over');
+      });
+
+      item.addEventListener('drop', (e) => {
+        e.preventDefault();
+        item.classList.remove('drag-over');
+        const fromIdx = this._dragSrcIndex;
+        const toIdx = idx;
+        if (fromIdx !== null && fromIdx !== toIdx) {
+          // Reorder the waypoints array
+          const [moved] = this.waypoints.splice(fromIdx, 1);
+          this.waypoints.splice(toIdx, 0, moved);
+          this.routeData = null; // Clear snapped route
+          this.updateUI();
+          if (this.onReorderWaypoints) this.onReorderWaypoints();
+        }
+        this._dragSrcIndex = null;
       });
 
       this.elList.appendChild(item);
