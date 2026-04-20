@@ -596,9 +596,3 @@ Iot-CP/
 │       └── vite.svg            # Vite logo
 └── dist/                  # Production build output (generated)
 ```
-
----
-
-## License
-
-This project is part of an IoT course project at VIT Vellore. See the repository for license details.
